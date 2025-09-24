@@ -32,3 +32,7 @@ symbols.rds
 # Rproj
 .Rproj.user
 *.Rproj
+
+# macOS specific files
+.DS_Store
+
