@@ -193,7 +193,6 @@
 #     }
 # })
 
-
 # Load TMB, which is needed for the model fitting
 library(TMB)
 
@@ -304,51 +303,48 @@ occuN <- function(formula, data,
 
 
 # --------------------------------------------------------------------------
-# FINAL PREDICT METHOD
+# FINAL PREDICT METHOD WITH MULTI-LEVEL FUNCTIONALITY
 # --------------------------------------------------------------------------
 
 setMethod("predict", "unmarkedFitOccuN",
     function(object, type, newdata = NULL, backTransform = TRUE, ...) {
 
-    if(!type %in% c("state", "det", "lambda")){
-      stop("Type must be 'state', 'det', or 'lambda'")
+    # Check for valid prediction type
+    valid_types <- c("state", "det", "lambda", "intensity")
+    if(!type %in% valid_types){
+      stop(paste("Type must be one of:", paste(valid_types, collapse=", ")))
     }
 
+    # If no newdata is provided, use the original data for site-level predictions
     if(is.null(newdata)){
+      if(type == "intensity") stop("'newdata' is required for type='intensity'")
       newdata <- object@data
     }
 
+    # --- Site-Level Predictions ---
     if(type %in% c("state", "lambda")){
+      if(!is(newdata, "unmarkedFrameOccuN")) stop("'newdata' must be an unmarkedFrameOccuN for this prediction type")
       
       state_est <- object@estimates['state']
-      
-      # Use linearComb with the estimate object and the cell-level data
       log_lambda_j_lc <- linearComb(state_est, newdata@cellCovs)
 
-      # Manually calculate the weighted sum and propagate variance
       w <- newdata@w
       log_lambda_tilde_est <- w %*% log_lambda_j_lc@estimate
       vcov_log_lambda_tilde <- w %*% vcov(log_lambda_j_lc) %*% t(w)
       
       lambda_tilde_lc <- new("unmarkedLinComb", 
                              estimate = as.vector(log_lambda_tilde_est),
-                             vcov = vcov_log_lambda_tilde,
-                             originalEst = coef(state_est),
-                             matrix = w)
+                             vcov = vcov_log_lambda_tilde)
 
       if(type == "lambda"){
-        if(backTransform){
-          lambda_tilde_lc@estimate <- exp(lambda_tilde_lc@estimate)
-        }
+        if(backTransform) lambda_tilde_lc@estimate <- exp(lambda_tilde_lc@estimate)
         return(lambda_tilde_lc)
 
       } else { # type == "state"
         if(backTransform){
           lambda_tilde <- exp(lambda_tilde_lc@estimate)
           psi <- 1 - exp(-lambda_tilde)
-          
           se <- sqrt(diag( (exp(-lambda_tilde))^2 * vcov(lambda_tilde_lc) ))
-          
           out <- data.frame(Predicted = psi, SE = se)
           rownames(out) <- 1:nrow(out)
           return(out)
@@ -358,7 +354,21 @@ setMethod("predict", "unmarkedFitOccuN",
       }
     }
 
+    # --- Cell/Point-Level Predictions ---
+    if(type == "intensity"){
+        if(!is(newdata, "data.frame")) stop("'newdata' must be a data.frame for type='intensity'")
+        
+        state_est <- object@estimates['state']
+        preds <- linearComb(state_est, newdata)
+        
+        if(backTransform) preds@estimate <- exp(preds@estimate)
+        return(preds)
+    }
+
+    # --- Detection Predictions ---
     if(type == "det"){
+      if(!is(newdata, "unmarkedFrameOccuN")) stop("'newdata' must be an unmarkedFrameOccuN for this prediction type")
+
       det_est <- object@estimates['det']
       
       M <- numSites(newdata)
@@ -370,10 +380,9 @@ setMethod("predict", "unmarkedFitOccuN",
       
       det_preds <- linearComb(det_est, det_data)
       
-      if(backTransform){
-        det_preds@estimate <- plogis(det_preds@estimate)
-      }
+      if(backTransform) det_preds@estimate <- plogis(det_preds@estimate)
       return(det_preds)
     }
 })
+
 
