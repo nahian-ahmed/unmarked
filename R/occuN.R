@@ -33,15 +33,22 @@ setMethod("getDesign", "unmarkedFrameOccuN",
     det_formula <- form_parts$det
     state_formula <- form_parts$state
 
-    # --- Correctly Prepare Detection Data (Final Version) ---
-    # 1. Expand site covariates to be observation-specific
-    site_covs_expanded <- umf@siteCovs[rep(1:M, each = J), , drop = FALSE]
+    # --- Robustly Prepare Detection Data (Final Version) ---
+    # 1. Create a base data frame with the correct number of rows for observations.
+    det_data <- data.frame(matrix(NA, nrow = M * J, ncol = 0))
 
-    # 2. Robustly convert the obsCovs list to a data.frame
-    obs_covs_df <- as.data.frame(lapply(umf@obsCovs, as.vector))
+    # 2. Add site-level covariates, expanded to the observation level.
+    if(ncol(umf@siteCovs) > 0) {
+      site_covs_expanded <- umf@siteCovs[rep(1:M, each = J), , drop = FALSE]
+      det_data <- cbind(det_data, site_covs_expanded)
+    }
 
-    # 3. Combine into a single data.frame for the model matrix
-    det_data <- cbind(site_covs_expanded, obs_covs_df)
+    # 3. Add observation-level covariates.
+    if(length(umf@obsCovs) > 0) {
+      obs_covs_df <- as.data.frame(lapply(umf@obsCovs, as.vector))
+      det_data <- cbind(det_data, obs_covs_df)
+    }
+    
     rownames(det_data) <- NULL
 
     # Build the design matrices
