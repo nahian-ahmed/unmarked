@@ -5,14 +5,11 @@
 template<class Type>
 Type tmb_occuN(objective_function<Type>* obj) {
   
-  // --- This is the crucial fix ---
-  // Redefine the macro that TMB uses to find the object.
-  // We are telling it to use our function's 'obj' pointer instead of 'this'.
+  // Redefine the macro that TMB uses to find the object for THIS FUNCTION ONLY.
   #undef TMB_OBJECTIVE_PTR
   #define TMB_OBJECTIVE_PTR obj
 
-  // --- 1. Data and Parameters ---
-  // These macros will now correctly use the 'obj' pointer
+  // --- Data and Parameters ---
   DATA_MATRIX(y); 
   DATA_MATRIX(X); 
   DATA_MATRIX(V); 
@@ -23,15 +20,11 @@ Type tmb_occuN(objective_function<Type>* obj) {
 
   Type nll = 0.0;
 
-  // --- 2. State Process ---
+  // --- Model Logic ---
   vector<Type> log_lambda_j = X * beta;
   vector<Type> lambda_j = exp(log_lambda_j);
-
-  // --- 3. Link State to Occupancy ---
   vector<Type> lambda_tilde_i = w * lambda_j;
   vector<Type> psi_i = Type(1.0) - exp(-lambda_tilde_i);
-
-  // --- 4. Observation Process ---
   int M = y.rows();
   int J = y.cols();
   vector<Type> logit_p = V * alpha;
@@ -54,5 +47,9 @@ Type tmb_occuN(objective_function<Type>* obj) {
 
   return nll;
 }
+
+// --- This is the crucial fix ---
+// Undefine our temporary macro to prevent it from "leaking" into other files.
+#undef TMB_OBJECTIVE_PTR
 
 #endif // End of the include guard
