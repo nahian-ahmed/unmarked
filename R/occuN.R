@@ -1,7 +1,4 @@
-# /R/occuN.R
-
 #' @export
-# Defines the S4 class, now with the 'cellCovs' slot
 setClass("unmarkedFrameOccuN",
          slots = c(w = "matrix",
                    cellCovs = "data.frame"),
@@ -9,24 +6,17 @@ setClass("unmarkedFrameOccuN",
 
 
 #' @export
-# The constructor function, now taking 'cellCovs' as an argument
 unmarkedFrameOccuN <- function(y, siteCovs = NULL, obsCovs = NULL,
                                cellCovs, w, mapInfo = NULL) {
 
-    # Create a placeholder for siteCovs if none is provided
     if(is.null(siteCovs)) {
         siteCovs <- data.frame(site = seq_len(nrow(y)))
     }
-
-    # Call the parent constructor with site-level data
     parentFrame <- unmarkedFrameOccu(y = y, siteCovs = siteCovs,
                                      obsCovs = obsCovs, mapInfo = mapInfo)
-
-    # Create the final object with the new 'w' and 'cellCovs' data
     umf <- new("unmarkedFrameOccuN", parentFrame,
                w = w,
                cellCovs = cellCovs)
-
     return(umf)
 }
 
@@ -35,19 +25,24 @@ unmarkedFrameOccuN <- function(y, siteCovs = NULL, obsCovs = NULL,
 setMethod("getDesign", "unmarkedFrameOccuN",
     function(umf, formula, na.rm = TRUE) {
 
-    # Separate the formula into state (abundance) and detection parts
+    M <- numSites(umf)
+    J <- obsNum(umf)
+    
     formula <- as.formula(formula)
-    form_parts <- unmarked:::split_formula(formula) # Use unmarked internal function
+    form_parts <- unmarked:::split_formula(formula)
     det_formula <- form_parts$det
     state_formula <- form_parts$state
 
-    # Build the detection design matrix (V) from obsCovs and siteCovs
-    # This allows for formulas like ~ wind_speed + site_access
-    det_data <- cbind(umf@obsCovs, umf@siteCovs)
+    # Prepare detection data: expand siteCovs and combine with obsCovs
+    # This is the standard, correct way to do this in unmarked
+    site_covs_expanded <- umf@siteCovs[rep(1:M, each = J), , drop = FALSE]
+    det_data <- cbind(site_covs_expanded, umf@obsCovs)
+    rownames(det_data) <- NULL
+    
+    # Build the detection design matrix (V)
     V_design <- model.matrix(det_formula, det_data)
 
-    # Build the state design matrix (X) from our new 'cellCovs' slot
-    # This is the core of the occuN model's functionality
+    # Build the state design matrix (X) from the cellCovs slot
     X_design <- model.matrix(state_formula, umf@cellCovs)
 
     y <- getY(umf)
@@ -57,16 +52,13 @@ setMethod("getDesign", "unmarkedFrameOccuN",
 
 
 #' @export
-# The main user-facing function for fitting the occuN model
 occuN <- function(formula, data,
                   starts, method = "BFGS", control = list(), se = TRUE) {
 
-    # Check for the correct data object type
     if(!is(data, "unmarkedFrameOccuN")) {
         stop("Data is not an object of class unmarkedFrameOccuN.")
     }
 
-    # This call now dispatches to our custom getDesign method
     designMats <- getDesign(data, formula)
     X <- designMats$X
     V <- designMats$V
