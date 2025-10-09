@@ -1,6 +1,4 @@
 
-
-
 # # Load TMB, which is needed for the model fitting
 # library(TMB)
 
@@ -63,34 +61,137 @@
 #     designMats <- getDesign(data, formula)
     
 #     tmb_data <- list(model = "tmb_occuN",
-#                      y = designMats$y,
-#                      X = designMats$X,
-#                      V = designMats$V,
-#                      w = data@w)
+#                      y = designMats$y, X = designMats$X,
+#                      V = designMats$V, w = data@w)
     
 #     n_alpha <- ncol(designMats$V)
 #     n_beta <- ncol(designMats$X)
+#     n_pars <- n_alpha + n_beta
 
 #     if(missing(starts)) {
-#         starts <- rep(0, n_alpha + n_beta)
+#         starts <- rep(0, n_pars)
 #     }
 #     tmb_params <- list(alpha = starts[1:n_alpha],
-#                        beta = starts[(n_alpha + 1):(n_alpha + n_beta)])
+#                        beta = starts[(n_alpha + 1):n_pars])
 
-#     # --- This is the final fix ---
-#     # Point TMB to the correct DLL that contains all the TMB models.
-#     obj <- TMB::MakeADFun(data = tmb_data,
-#                           parameters = tmb_params,
-#                           DLL = "unmarked_TMBExports", # Correct DLL name
-#                           silent = TRUE)
+#     obj <- TMB::MakeADFun(data = tmb_data, parameters = tmb_params,
+#                           DLL = "unmarked_TMBExports", silent = TRUE)
 
 #     opt <- nlminb(obj$par, obj$fn, obj$gr, control = control)
-
-#     cat("SUCCESS! Model has been fit with TMB.\n")
-#     print(opt)
     
+#     sd_rep <- TMB::sdreport(obj)
+#     est_mat <- summary(sd_rep)
+    
+#     state_est <- unmarkedEstimate(name = "State", short.name = "lam",
+#                                   estimates = est_mat[1:n_beta, 1],
+#                                   covMat = sd_rep$cov.fixed[1:n_beta, 1:n_beta],
+#                                   invlink = "exp", invlinkGrad = "exp")
+
+#     det_est <- unmarkedEstimate(name = "Detection", short.name = "p",
+#                                 estimates = est_mat[(n_beta + 1):n_pars, 1],
+#                                 covMat = sd_rep$cov.fixed[(n_beta + 1):n_pars, (n_beta + 1):n_pars],
+#                                 invlink = "logistic", invlinkGrad = "logistic.grad")
+
+#     fit <- new("unmarkedFitOccuN",
+#                fitType = "occuN",
+#                call = match.call(),
+#                formula = formula,
+#                data = data,
+#                sitesRemoved = numeric(0), # <-- FINAL FIX IS HERE
+#                estimates = unmarkedEstimateList(list(state=state_est, det=det_est)),
+#                AIC = 2 * opt$objective + 2 * n_pars,
+#                opt = opt,
+#                negLogLike = opt$objective,
+#                nllFun = obj$fn)
+
+#     return(fit)
 # }
 
+# setMethod("predict", "unmarkedFitOccuN",
+#     function(object, type, newdata = NULL, backTransform = TRUE, ...) {
+
+#     # Check for valid prediction type
+#     if(!type %in% c("state", "det", "lambda")){
+#       stop("Type must be 'state', 'det', or 'lambda'")
+#     }
+
+#     # If no newdata is provided, predict for the original data
+#     if(is.null(newdata)){
+#       newdata <- object@data
+#     }
+
+#     if(type == "state" || type == "lambda"){
+#       # --- Predict State Process: Occupancy (psi) or Expected Abundance (lambda) ---
+
+#       # 1. Get the state estimate object from the fitted model
+#       state_est <- object@estimates['state']
+
+#       # 2. Build the cell-level design matrix from the newdata's cellCovs
+#       state_formula <- as.formula(paste("~", object@formula[3], sep=""))
+#       X <- model.matrix(state_formula, newdata@cellCovs)
+
+#       # 3. Calculate cell-level lambda on the log scale (linear predictor)
+#       log_lambda_j_lc <- unmarked::linearComb(X, coef(state_est), ...)
+
+#       # 4. Calculate site-level expected abundance (lambda_tilde)
+#       # This requires matrix multiplication on the predictions and their variance
+#       w <- newdata@w
+#       lambda_tilde_lc <- unmarked::linearComb(w, log_lambda_j_lc, ...)
+
+#       # 5. Handle back-transformation based on prediction type
+#       if(type == "lambda"){
+#         # Return site-level expected abundance
+#         if(backTransform){
+#           lambda_tilde_lc@estimate <- exp(lambda_tilde_lc@estimate)
+#         }
+#         return(lambda_tilde_lc)
+
+#       } else { # type == "state"
+#         # Return site-level occupancy probability (psi)
+#         if(backTransform){
+#           # Apply the cloglog-inverse transformation: psi = 1 - exp(-lambda_tilde)
+#           lambda_tilde <- exp(lambda_tilde_lc@estimate)
+#           psi <- 1 - exp(-lambda_tilde)
+          
+#           # Use the delta method to get SE on the probability scale
+#           # The derivative of psi w.r.t lambda_tilde is exp(-lambda_tilde)
+#           se <- sqrt( (exp(-lambda_tilde))^2 * diag(vcov(lambda_tilde_lc)) )
+          
+#           out <- data.frame(Predicted = psi, SE = se)
+#           rownames(out) <- rownames(newdata@y)
+#           return(out)
+#         } else {
+#           # On the linear scale, psi is equivalent to lambda_tilde
+#           return(lambda_tilde_lc)
+#         }
+#       }
+#     }
+
+#     if(type == "det"){
+#       # --- Predict Detection Process (p) ---
+#       det_est <- object@estimates['det']
+      
+#       # Prepare detection data from newdata
+#       M <- numSites(newdata)
+#       J <- obsNum(newdata)
+#       sc <- newdata@siteCovs
+#       if(nrow(sc)>0) sc <- sc[rep(1:M, each=J),,drop=FALSE]
+#       oc <- as.data.frame(lapply(newdata@obsCovs, as.vector))
+#       det_data <- cbind(sc, oc)
+
+#       # Build detection design matrix
+#       det_formula <- as.formula(object@formula[[2]])
+#       V <- model.matrix(det_formula, det_data)
+      
+#       # Get predictions
+#       det_preds <- unmarked::linearComb(V, coef(det_est), ...)
+      
+#       if(backTransform){
+#         det_preds@estimate <- plogis(det_preds@estimate)
+#       }
+#       return(det_preds)
+#     }
+# })
 
 
 # Load TMB, which is needed for the model fitting
@@ -174,7 +275,7 @@ occuN <- function(formula, data,
     opt <- nlminb(obj$par, obj$fn, obj$gr, control = control)
     
     sd_rep <- TMB::sdreport(obj)
-    est_mat <- summary(sd_rep)
+    est_mat <- summary(sd_rep, "fixed")
     
     state_est <- unmarkedEstimate(name = "State", short.name = "lam",
                                   estimates = est_mat[1:n_beta, 1],
@@ -191,7 +292,7 @@ occuN <- function(formula, data,
                call = match.call(),
                formula = formula,
                data = data,
-               sitesRemoved = numeric(0), # <-- FINAL FIX IS HERE
+               sitesRemoved = numeric(0),
                estimates = unmarkedEstimateList(list(state=state_est, det=det_est)),
                AIC = 2 * opt$objective + 2 * n_pars,
                opt = opt,
@@ -201,84 +302,73 @@ occuN <- function(formula, data,
     return(fit)
 }
 
+
+# --------------------------------------------------------------------------
+# FINAL PREDICT METHOD
+# --------------------------------------------------------------------------
+
 setMethod("predict", "unmarkedFitOccuN",
     function(object, type, newdata = NULL, backTransform = TRUE, ...) {
 
-    # Check for valid prediction type
     if(!type %in% c("state", "det", "lambda")){
       stop("Type must be 'state', 'det', or 'lambda'")
     }
 
-    # If no newdata is provided, predict for the original data
     if(is.null(newdata)){
       newdata <- object@data
     }
 
-    if(type == "state" || type == "lambda"){
-      # --- Predict State Process: Occupancy (psi) or Expected Abundance (lambda) ---
-
-      # 1. Get the state estimate object from the fitted model
+    if(type %in% c("state", "lambda")){
+      
       state_est <- object@estimates['state']
+      
+      # Use linearComb with the estimate object and the cell-level data
+      log_lambda_j_lc <- linearComb(state_est, newdata@cellCovs)
 
-      # 2. Build the cell-level design matrix from the newdata's cellCovs
-      state_formula <- as.formula(paste("~", object@formula[3], sep=""))
-      X <- model.matrix(state_formula, newdata@cellCovs)
-
-      # 3. Calculate cell-level lambda on the log scale (linear predictor)
-      log_lambda_j_lc <- unmarked::linearComb(X, coef(state_est), ...)
-
-      # 4. Calculate site-level expected abundance (lambda_tilde)
-      # This requires matrix multiplication on the predictions and their variance
+      # Manually calculate the weighted sum and propagate variance
       w <- newdata@w
-      lambda_tilde_lc <- unmarked::linearComb(w, log_lambda_j_lc, ...)
+      log_lambda_tilde_est <- w %*% log_lambda_j_lc@estimate
+      vcov_log_lambda_tilde <- w %*% vcov(log_lambda_j_lc) %*% t(w)
+      
+      lambda_tilde_lc <- new("unmarkedLinComb", 
+                             estimate = as.vector(log_lambda_tilde_est),
+                             vcov = vcov_log_lambda_tilde,
+                             originalEst = coef(state_est),
+                             matrix = w)
 
-      # 5. Handle back-transformation based on prediction type
       if(type == "lambda"){
-        # Return site-level expected abundance
         if(backTransform){
           lambda_tilde_lc@estimate <- exp(lambda_tilde_lc@estimate)
         }
         return(lambda_tilde_lc)
 
       } else { # type == "state"
-        # Return site-level occupancy probability (psi)
         if(backTransform){
-          # Apply the cloglog-inverse transformation: psi = 1 - exp(-lambda_tilde)
           lambda_tilde <- exp(lambda_tilde_lc@estimate)
           psi <- 1 - exp(-lambda_tilde)
           
-          # Use the delta method to get SE on the probability scale
-          # The derivative of psi w.r.t lambda_tilde is exp(-lambda_tilde)
-          se <- sqrt( (exp(-lambda_tilde))^2 * diag(vcov(lambda_tilde_lc)) )
+          se <- sqrt(diag( (exp(-lambda_tilde))^2 * vcov(lambda_tilde_lc) ))
           
           out <- data.frame(Predicted = psi, SE = se)
-          rownames(out) <- rownames(newdata@y)
+          rownames(out) <- 1:nrow(out)
           return(out)
         } else {
-          # On the linear scale, psi is equivalent to lambda_tilde
           return(lambda_tilde_lc)
         }
       }
     }
 
     if(type == "det"){
-      # --- Predict Detection Process (p) ---
       det_est <- object@estimates['det']
       
-      # Prepare detection data from newdata
       M <- numSites(newdata)
       J <- obsNum(newdata)
       sc <- newdata@siteCovs
       if(nrow(sc)>0) sc <- sc[rep(1:M, each=J),,drop=FALSE]
       oc <- as.data.frame(lapply(newdata@obsCovs, as.vector))
       det_data <- cbind(sc, oc)
-
-      # Build detection design matrix
-      det_formula <- as.formula(object@formula[[2]])
-      V <- model.matrix(det_formula, det_data)
       
-      # Get predictions
-      det_preds <- unmarked::linearComb(V, coef(det_est), ...)
+      det_preds <- linearComb(det_est, det_data)
       
       if(backTransform){
         det_preds@estimate <- plogis(det_preds@estimate)
@@ -286,3 +376,4 @@ setMethod("predict", "unmarkedFitOccuN",
       return(det_preds)
     }
 })
+
