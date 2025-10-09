@@ -34,19 +34,19 @@ setMethod("getDesign", "unmarkedFrameOccuN",
     state_formula <- form_parts$state
 
     # --- Definitive Data Preparation for Detection Model ---
-    # 1. Expand site-level covariates to the observation level
+    # 1. Expand site-level covariates to the observation level.
     sc <- umf@siteCovs
     if(nrow(sc) > 0) {
       sc <- sc[rep(1:M, each = J), , drop = FALSE]
     }
 
-    # 2. Convert the observation-level covariates list to a data frame
+    # 2. Convert the observation-level covariates list to a data frame.
     oc <- as.data.frame(lapply(umf@obsCovs, as.vector))
 
-    # 3. Combine them into a single, valid data frame
+    # 3. Combine them into a single, clean data frame. This is the crucial step.
     det_data <- cbind(sc, oc)
-
-    # 4. Use this clean data frame to build the model matrix
+    
+    # 4. Use this clean data frame to build the model matrix.
     V_design <- model.matrix(det_formula, det_data)
 
     # --- Prepare State Model Data ---
