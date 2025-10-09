@@ -176,15 +176,11 @@ occuN <- function(formula, data,
     sd_rep <- TMB::sdreport(obj)
     est_mat <- summary(sd_rep)
     
-    # --- This section is now corrected ---
-    
-    # Use 'covMat' and remove the 'se' argument
     state_est <- unmarkedEstimate(name = "State", short.name = "lam",
                                   estimates = est_mat[1:n_beta, 1],
                                   covMat = sd_rep$cov.fixed[1:n_beta, 1:n_beta],
                                   invlink = "exp", invlinkGrad = "exp")
 
-    # Use 'covMat' and remove the 'se' argument
     det_est <- unmarkedEstimate(name = "Detection", short.name = "p",
                                 estimates = est_mat[(n_beta + 1):n_pars, 1],
                                 covMat = sd_rep$cov.fixed[(n_beta + 1):n_pars, (n_beta + 1):n_pars],
@@ -195,7 +191,7 @@ occuN <- function(formula, data,
                call = match.call(),
                formula = formula,
                data = data,
-               sitesRemoved = NULL,
+               sitesRemoved = numeric(0), # <-- FINAL FIX IS HERE
                estimates = unmarkedEstimateList(list(state=state_est, det=det_est)),
                AIC = 2 * opt$objective + 2 * n_pars,
                opt = opt,
