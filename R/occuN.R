@@ -323,7 +323,6 @@ setMethod("predict", "unmarkedFitOccuN",
       if(!is(newdata, "unmarkedFrameOccuN")) stop("'newdata' must be an unmarkedFrameOccuN for this prediction type")
       
       state_est <- object@estimates['state']
-      # Explicitly name the 'newdata' argument
       log_lambda_j_lc <- linearComb(state_est, newdata = newdata@cellCovs)
 
       w <- newdata@w
@@ -353,10 +352,10 @@ setMethod("predict", "unmarkedFitOccuN",
     }
 
     if(type == "intensity"){
-        if(!is(data.frame, "data.frame")) stop("'newdata' must be a data.frame for type='intensity'")
+        # This is the line that has been corrected
+        if(!is(newdata, "data.frame")) stop("'newdata' must be a data.frame for type='intensity'")
         
         state_est <- object@estimates['state']
-        # Explicitly name the 'newdata' argument
         preds <- linearComb(state_est, newdata = newdata)
         
         if(backTransform) preds@estimate <- exp(preds@estimate)
@@ -375,10 +374,10 @@ setMethod("predict", "unmarkedFitOccuN",
       oc <- as.data.frame(lapply(newdata@obsCovs, as.vector))
       det_data <- cbind(sc, oc)
       
-      # Explicitly name the 'newdata' argument
       det_preds <- linearComb(det_est, newdata = det_data)
       
       if(backTransform) det_preds@estimate <- plogis(det_preds@estimate)
       return(det_preds)
     }
 })
+
