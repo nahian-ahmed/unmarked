@@ -25,31 +25,29 @@ unmarkedFrameOccuN <- function(y, siteCovs = NULL, obsCovs = NULL,
 setMethod("getDesign", "unmarkedFrameOccuN",
     function(umf, formula, na.rm = TRUE) {
 
-    M <- numSites(umf)
-    J <- obsNum(umf)
-
     formula <- as.formula(formula)
     form_parts <- unmarked:::split_formula(formula)
     det_formula <- form_parts$det
     state_formula <- form_parts$state
 
-    # --- Definitive Data Preparation for Detection Model ---
-    # 1. Expand site-level covariates to the observation level.
+    # --- Definitive Data Preparation (Mirrors unmarked internals) ---
+    
+    # 1. Prepare data for the detection model
+    #    Combine site and obs covariates into a single data frame
+    M <- numSites(umf)
+    J <- obsNum(umf)
     sc <- umf@siteCovs
+    oc <- umf@obsCovs
     if(nrow(sc) > 0) {
       sc <- sc[rep(1:M, each = J), , drop = FALSE]
     }
-
-    # 2. Convert the observation-level covariates list to a data frame.
-    oc <- as.data.frame(lapply(umf@obsCovs, as.vector))
-
-    # 3. Combine them into a single, clean data frame. This is the crucial step.
+    if(length(oc) > 0) {
+      oc <- as.data.frame(lapply(oc, as.vector))
+    }
     det_data <- cbind(sc, oc)
     
-    # 4. Use this clean data frame to build the model matrix.
+    # 2. Build the design matrices using this clean data
     V_design <- model.matrix(det_formula, det_data)
-
-    # --- Prepare State Model Data ---
     X_design <- model.matrix(state_formula, umf@cellCovs)
 
     y <- getY(umf)
