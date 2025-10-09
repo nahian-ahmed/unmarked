@@ -64,11 +64,11 @@ occuN <- function(formula, data,
         stop("Data is not an object of class unmarkedFrameOccuN.")
     }
 
-    designMats <- getDesign(data, formula)
-    X <- designMats$X
-    V <- designMats$V
-    y <- designMats$y
-    w <- data@w
+    # designMats <- getDesign(data, formula)
+    # X <- designMats$X
+    # V <- designMats$V
+    # y <- designMats$y
+    # w <- data@w
 
     cat("SUCCESS! occuN function is running with the correct custom getDesign method.\n")
     cat("State design matrix (X) has", nrow(X), "rows (cells).\n")
