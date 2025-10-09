@@ -323,8 +323,8 @@ setMethod("predict", "unmarkedFitOccuN",
     if(type %in% c("state", "lambda")){
       if(!is(newdata, "unmarkedFrameOccuN")) stop("'newdata' must be an unmarkedFrameOccuN for this prediction type")
       
-      # Use double brackets to extract the unmarkedEstimate object
-      state_est <- object@estimates[['state']]
+      # Use single brackets for correct S4 subsetting
+      state_est <- object@estimates['state']
       log_lambda_j_lc <- linearComb(state_est, newdata = newdata@cellCovs)
 
       w <- newdata@w
@@ -356,8 +356,8 @@ setMethod("predict", "unmarkedFitOccuN",
     if(type == "intensity"){
         if(!is(newdata, "data.frame")) stop("'newdata' must be a data.frame for type='intensity'")
         
-        # Use double brackets to extract the unmarkedEstimate object
-        state_est <- object@estimates[['state']]
+        # Use single brackets for correct S4 subsetting
+        state_est <- object@estimates['state']
         preds <- linearComb(state_est, newdata = newdata)
         
         if(backTransform) preds@estimate <- exp(preds@estimate)
@@ -367,8 +367,8 @@ setMethod("predict", "unmarkedFitOccuN",
     if(type == "det"){
       if(!is(newdata, "unmarkedFrameOccuN")) stop("'newdata' must be an unmarkedFrameOccuN for this prediction type")
 
-      # Use double brackets to extract the unmarkedEstimate object
-      det_est <- object@estimates[['det']]
+      # Use single brackets for correct S4 subsetting
+      det_est <- object@estimates['det']
       
       M <- numSites(newdata)
       J <- obsNum(newdata)
@@ -383,5 +383,6 @@ setMethod("predict", "unmarkedFitOccuN",
       return(det_preds)
     }
 })
+
 
 
