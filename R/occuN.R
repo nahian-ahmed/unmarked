@@ -130,10 +130,8 @@ occuN <- function(formula, data,
         stop("Data is not an object of class unmarkedFrameOccuN.")
     }
 
-    # 1. Prepare data and parameters for TMB
     designMats <- getDesign(data, formula)
     
-    # Add "model" to the data list to tell the dispatcher which model to run
     tmb_data <- list(model = "tmb_occuN",
                      y = designMats$y,
                      X = designMats$X,
@@ -149,17 +147,16 @@ occuN <- function(formula, data,
     tmb_params <- list(alpha = starts[1:n_alpha],
                        beta = starts[(n_alpha + 1):(n_alpha + n_beta)])
 
-    # 2. Call the TMB optimization engine
-    # The DLL is now the main "unmarked" library, not a specific exports file.
+    # --- This is the final fix ---
+    # Point TMB to the correct DLL that contains all the TMB models.
     obj <- TMB::MakeADFun(data = tmb_data,
                           parameters = tmb_params,
-                          DLL = "unmarked",
+                          DLL = "unmarked_TMBExports", # Correct DLL name
                           silent = TRUE)
 
     opt <- nlminb(obj$par, obj$fn, obj$gr, control = control)
 
-    # 3. Format and return the results (simplified for now)
-    cat("SUCCESS! Model has been fit with TMB using the dispatcher.\n")
+    cat("SUCCESS! Model has been fit with TMB.\n")
     print(opt)
     
 }
