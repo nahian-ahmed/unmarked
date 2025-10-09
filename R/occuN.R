@@ -309,24 +309,22 @@ occuN <- function(formula, data,
 setMethod("predict", "unmarkedFitOccuN",
     function(object, type, newdata = NULL, backTransform = TRUE, ...) {
 
-    # Check for valid prediction type
     valid_types <- c("state", "det", "lambda", "intensity")
     if(!type %in% valid_types){
       stop(paste("Type must be one of:", paste(valid_types, collapse=", ")))
     }
 
-    # If no newdata is provided, use the original data for site-level predictions
     if(is.null(newdata)){
       if(type == "intensity") stop("'newdata' is required for type='intensity'")
       newdata <- object@data
     }
 
-    # --- Site-Level Predictions ---
     if(type %in% c("state", "lambda")){
       if(!is(newdata, "unmarkedFrameOccuN")) stop("'newdata' must be an unmarkedFrameOccuN for this prediction type")
       
       state_est <- object@estimates['state']
-      log_lambda_j_lc <- linearComb(state_est, newdata@cellCovs)
+      # Explicitly name the 'newdata' argument
+      log_lambda_j_lc <- linearComb(state_est, newdata = newdata@cellCovs)
 
       w <- newdata@w
       log_lambda_tilde_est <- w %*% log_lambda_j_lc@estimate
@@ -354,18 +352,17 @@ setMethod("predict", "unmarkedFitOccuN",
       }
     }
 
-    # --- Cell/Point-Level Predictions ---
     if(type == "intensity"){
-        if(!is(newdata, "data.frame")) stop("'newdata' must be a data.frame for type='intensity'")
+        if(!is(data.frame, "data.frame")) stop("'newdata' must be a data.frame for type='intensity'")
         
         state_est <- object@estimates['state']
-        preds <- linearComb(state_est, newdata)
+        # Explicitly name the 'newdata' argument
+        preds <- linearComb(state_est, newdata = newdata)
         
         if(backTransform) preds@estimate <- exp(preds@estimate)
         return(preds)
     }
 
-    # --- Detection Predictions ---
     if(type == "det"){
       if(!is(newdata, "unmarkedFrameOccuN")) stop("'newdata' must be an unmarkedFrameOccuN for this prediction type")
 
@@ -378,11 +375,10 @@ setMethod("predict", "unmarkedFitOccuN",
       oc <- as.data.frame(lapply(newdata@obsCovs, as.vector))
       det_data <- cbind(sc, oc)
       
-      det_preds <- linearComb(det_est, det_data)
+      # Explicitly name the 'newdata' argument
+      det_preds <- linearComb(det_est, newdata = det_data)
       
       if(backTransform) det_preds@estimate <- plogis(det_preds@estimate)
       return(det_preds)
     }
 })
-
-
