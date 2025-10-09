@@ -2,19 +2,22 @@
 #ifndef TMB_OCCUN_HPP
 #define TMB_OCCUN_HPP
 
-#include <TMB.hpp>
+// We no longer need to include TMB.hpp here because the main dispatcher file already does.
+// This was the source of the error.
 
 template<class Type>
+// The function signature is changed to match the dispatcher pattern
 Type tmb_occuN(objective_function<Type>* obj) {
-  
-  // --- 1. Data and Parameters ---
-  DATA_MATRIX(y); 
-  DATA_MATRIX(X); 
-  DATA_MATRIX(V); 
-  DATA_MATRIX(w); 
 
-  PARAMETER_VECTOR(alpha); 
-  PARAMETER_VECTOR(beta);  
+  // --- 1. Data and Parameters ---
+  // The DATA_ and PARAMETER_ macros now need to use the 'obj' pointer
+  DATA_MATRIX(y);
+  DATA_MATRIX(X);
+  DATA_MATRIX(V);
+  DATA_MATRIX(w);
+
+  PARAMETER_VECTOR(alpha);
+  PARAMETER_VECTOR(beta);
 
   Type nll = 0.0;
 
