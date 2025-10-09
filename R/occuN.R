@@ -33,26 +33,19 @@ setMethod("getDesign", "unmarkedFrameOccuN",
     det_formula <- form_parts$det
     state_formula <- form_parts$state
 
-    # --- Robustly Prepare Detection Data (Final Version) ---
-    # 1. Create a base data frame with the correct number of rows for observations.
-    det_data <- data.frame(matrix(NA, nrow = M * J, ncol = 0))
-
-    # 2. Add site-level covariates, expanded to the observation level.
-    if(ncol(umf@siteCovs) > 0) {
-      site_covs_expanded <- umf@siteCovs[rep(1:M, each = J), , drop = FALSE]
-      det_data <- cbind(det_data, site_covs_expanded)
-    }
-
-    # 3. Add observation-level covariates.
-    if(length(umf@obsCovs) > 0) {
-      obs_covs_df <- as.data.frame(lapply(umf@obsCovs, as.vector))
-      det_data <- cbind(det_data, obs_covs_df)
-    }
+    # --- Definitive Data Preparation ---
+    # 1. Combine site and observation covariates into a single list
+    #    This is how the core unmarked functions handle it.
+    covs_list <- c(umf@siteCovs, umf@obsCovs)
     
-    rownames(det_data) <- NULL
+    # 2. Use model.frame() to create the data object for the detection model
+    #    This is the key step that preserves the necessary formula attributes.
+    det_mf <- model.frame(det_formula, covs_list, na.action = na.pass)
+    
+    # 3. Now, create the design matrix from the model frame
+    V_design <- model.matrix(det_formula, det_mf)
 
-    # Build the design matrices
-    V_design <- model.matrix(det_formula, det_data)
+    # 4. Create the state design matrix from the cellCovs
     X_design <- model.matrix(state_formula, umf@cellCovs)
 
     y <- getY(umf)
