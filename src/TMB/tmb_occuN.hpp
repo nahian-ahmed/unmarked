@@ -5,8 +5,11 @@
 template<class Type>
 Type tmb_occuN(objective_function<Type>* obj) {
   
-  // Redefine the macro that TMB uses to find the object for THIS FUNCTION ONLY.
+  // --- This is the crucial fix ---
+  // Safely save the original definition of the macro
+  #pragma push_macro("TMB_OBJECTIVE_PTR")
   #undef TMB_OBJECTIVE_PTR
+  // Redefine the macro for THIS FUNCTION ONLY.
   #define TMB_OBJECTIVE_PTR obj
 
   // --- Data and Parameters ---
@@ -45,11 +48,10 @@ Type tmb_occuN(objective_function<Type>* obj) {
     }
   }
 
+  // --- Restore the original macro definition ---
+  #pragma pop_macro("TMB_OBJECTIVE_PTR")
+
   return nll;
 }
-
-// --- This is the crucial fix ---
-// Undefine our temporary macro to prevent it from "leaking" into other files.
-#undef TMB_OBJECTIVE_PTR
 
 #endif // End of the include guard
