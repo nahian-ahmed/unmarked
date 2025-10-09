@@ -10,7 +10,7 @@ unmarkedFrameOccuN <- function(y, siteCovs = NULL, obsCovs = NULL,
                                cellCovs, w, mapInfo = NULL) {
 
     if(is.null(siteCovs)) {
-        siteCovs <- data.frame(site = seq_len(nrow(y)))
+        siteCovs <- data.frame(site = 1:nrow(y))
     }
     parentFrame <- unmarkedFrameOccu(y = y, siteCovs = siteCovs,
                                      obsCovs = obsCovs, mapInfo = mapInfo)
@@ -27,22 +27,25 @@ setMethod("getDesign", "unmarkedFrameOccuN",
 
     M <- numSites(umf)
     J <- obsNum(umf)
-    
+
     formula <- as.formula(formula)
     form_parts <- unmarked:::split_formula(formula)
     det_formula <- form_parts$det
     state_formula <- form_parts$state
 
-    # Prepare detection data: expand siteCovs and combine with obsCovs
-    # This is the standard, correct way to do this in unmarked
+    # --- Correctly Prepare Detection Data (Final Version) ---
+    # 1. Expand site covariates to be observation-specific
     site_covs_expanded <- umf@siteCovs[rep(1:M, each = J), , drop = FALSE]
-    det_data <- cbind(site_covs_expanded, umf@obsCovs)
-    rownames(det_data) <- NULL
-    
-    # Build the detection design matrix (V)
-    V_design <- model.matrix(det_formula, det_data)
 
-    # Build the state design matrix (X) from the cellCovs slot
+    # 2. Robustly convert the obsCovs list to a data.frame
+    obs_covs_df <- as.data.frame(lapply(umf@obsCovs, as.vector))
+
+    # 3. Combine into a single data.frame for the model matrix
+    det_data <- cbind(site_covs_expanded, obs_covs_df)
+    rownames(det_data) <- NULL
+
+    # Build the design matrices
+    V_design <- model.matrix(det_formula, det_data)
     X_design <- model.matrix(state_formula, umf@cellCovs)
 
     y <- getY(umf)
