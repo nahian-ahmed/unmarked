@@ -46,9 +46,8 @@ setMethod("getDesign", "unmarkedFrameOccuN",
     # 3. Combine them into a single, valid data frame
     det_data <- cbind(sc, oc)
 
-    # 4. Use model.frame and model.matrix on the clean data frame
-    det_mf <- model.frame(det_formula, det_data, na.action = na.pass)
-    V_design <- model.matrix(det_formula, det_mf)
+    # 4. Use this clean data frame to build the model matrix
+    V_design <- model.matrix(det_formula, det_data)
 
     # --- Prepare State Model Data ---
     X_design <- model.matrix(state_formula, umf@cellCovs)
