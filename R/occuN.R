@@ -304,14 +304,11 @@ occuN <- function(formula, data,
 
 
 # --------------------------------------------------------------------------
-# DEBUGGING VERSION of PREDICT METHOD
+# FINAL PREDICT METHOD WITH MULTI-LEVEL FUNCTIONALITY
 # --------------------------------------------------------------------------
 
 setMethod("predict", "unmarkedFitOccuN",
     function(object, type, newdata = NULL, backTransform = TRUE, ...) {
-    
-    cat("\n--- [DEBUG] Entering predict method ---\n")
-    cat("Type requested:", type, "\n\n")
 
     valid_types <- c("state", "det", "lambda", "intensity")
     if(!type %in% valid_types){
@@ -323,36 +320,68 @@ setMethod("predict", "unmarkedFitOccuN",
       newdata <- object@data
     }
 
-    # --- INTENSITY PREDICTION (CELL/POINT) ---
+    if(type %in% c("state", "lambda")){
+      if(!is(newdata, "unmarkedFrameOccuN")) stop("'newdata' must be an unmarkedFrameOccuN for this prediction type")
+      
+      # Use single brackets to correctly get the unmarkedEstimate object
+      state_est <- object@estimates['state']
+      log_lambda_j_lc <- linearComb(state_est, newdata = newdata@cellCovs)
+
+      w <- newdata@w
+      log_lambda_tilde_est <- w %*% log_lambda_j_lc@estimate
+      vcov_log_lambda_tilde <- w %*% vcov(log_lambda_j_lc) %*% t(w)
+      
+      lambda_tilde_lc <- new("unmarkedLinComb", 
+                             estimate = as.vector(log_lambda_tilde_est),
+                             vcov = vcov_log_lambda_tilde)
+
+      if(type == "lambda"){
+        if(backTransform) lambda_tilde_lc@estimate <- exp(lambda_tilde_lc@estimate)
+        return(lambda_tilde_lc)
+
+      } else { # type == "state"
+        if(backTransform){
+          lambda_tilde <- exp(lambda_tilde_lc@estimate)
+          psi <- 1 - exp(-lambda_tilde)
+          se <- sqrt(diag( (exp(-lambda_tilde))^2 * vcov(lambda_tilde_lc) ))
+          out <- data.frame(Predicted = psi, SE = se)
+          rownames(out) <- 1:nrow(out)
+          return(out)
+        } else {
+          return(lambda_tilde_lc)
+        }
+      }
+    }
+
     if(type == "intensity"){
-        cat("--- [DEBUG] Path: Intensity prediction ---\n")
         if(!is(newdata, "data.frame")) stop("'newdata' must be a data.frame for type='intensity'")
         
-        # 1. Get the estimates object
-        estimates_list <- object@estimates
-        cat("[DEBUG] Class of @estimates slot:", class(estimates_list), "\n")
-        
-        state_est_list <- estimates_list['state']
-        cat("[DEBUG] Class of estimates_list['state']:", class(state_est_list), "\n")
-        
-        state_est_obj <- state_est_list[[1]]
-        cat("[DEBUG] Class of the object INSIDE the list:", class(state_est_obj), "\n\n")
-        
-        # 2. Call linearComb
-        cat("--- [DEBUG] Calling linearComb for intensity ---\n")
-        cat("[DEBUG] Arg 1 class:", class(state_est_obj), "\n")
-        cat("[DEBUG] Arg 2 ('newdata') class:", class(newdata), "\n")
-        
-        preds <- linearComb(state_est_obj, newdata = newdata)
-        
-        cat("--- [DEBUG] linearComb successful ---\n")
+        # Use single brackets to correctly get the unmarkedEstimate object
+        state_est <- object@estimates['state']
+        preds <- linearComb(state_est, newdata = newdata)
         
         if(backTransform) preds@estimate <- exp(preds@estimate)
         return(preds)
     }
 
-    # --- Add other prediction types below as we debug ---
-    # ...
-    
+    if(type == "det"){
+      if(!is(newdata, "unmarkedFrameOccuN")) stop("'newdata' must be an unmarkedFrameOccuN for this prediction type")
+
+      # Use single brackets to correctly get the unmarkedEstimate object
+      det_est <- object@estimates['det']
+      
+      M <- numSites(newdata)
+      J <- obsNum(newdata)
+      sc <- newdata@siteCovs
+      if(nrow(sc)>0) sc <- sc[rep(1:M, each=J),,drop=FALSE]
+      oc <- as.data.frame(lapply(newdata@obsCovs, as.vector))
+      det_data <- cbind(sc, oc)
+      
+      det_preds <- linearComb(det_est, newdata = det_data)
+      
+      if(backTransform) det_preds@estimate <- plogis(det_preds@estimate)
+      return(det_preds)
+    }
 })
+
 
