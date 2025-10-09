@@ -25,17 +25,18 @@ unmarkedFrameOccuN <- function(y, siteCovs = NULL, obsCovs = NULL,
 setMethod("getDesign", "unmarkedFrameOccuN",
     function(umf, formula, na.rm = TRUE) {
 
+    M <- numSites(umf)
+    J <- obsNum(umf)
+
     formula <- as.formula(formula)
     form_parts <- unmarked:::split_formula(formula)
     det_formula <- form_parts$det
     state_formula <- form_parts$state
 
     # --- Definitive Data Preparation (Mirrors unmarked internals) ---
-    
-    # 1. Prepare data for the detection model
-    #    Combine site and obs covariates into a single data frame
-    M <- numSites(umf)
-    J <- obsNum(umf)
+
+    # 1. Prepare data for the detection model by combining site and obs covariates
+    #    into a single, clean data frame. This is the proven method.
     sc <- umf@siteCovs
     oc <- umf@obsCovs
     if(nrow(sc) > 0) {
@@ -45,8 +46,8 @@ setMethod("getDesign", "unmarkedFrameOccuN",
       oc <- as.data.frame(lapply(oc, as.vector))
     }
     det_data <- cbind(sc, oc)
-    
-    # 2. Build the design matrices using this clean data
+
+    # 2. Build the design matrices using this clean data frame.
     V_design <- model.matrix(det_formula, det_data)
     X_design <- model.matrix(state_formula, umf@cellCovs)
 
@@ -64,11 +65,11 @@ occuN <- function(formula, data,
         stop("Data is not an object of class unmarkedFrameOccuN.")
     }
 
-    # designMats <- getDesign(data, formula)
-    # X <- designMats$X
-    # V <- designMats$V
-    # y <- designMats$y
-    # w <- data@w
+    designMats <- getDesign(data, formula)
+    X <- designMats$X
+    V <- designMats$V
+    y <- designMats$y
+    w <- data@w
 
     cat("SUCCESS! occuN function is running with the correct custom getDesign method.\n")
     cat("State design matrix (X) has", nrow(X), "rows (cells).\n")
