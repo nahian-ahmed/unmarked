@@ -63,65 +63,65 @@
 template<class Type>
 Type tmb_occuN(objective_function<Type>* obj) {
   // ++ DATA ++ //
-  DATA_MATRIX(y);            // Detections
-  DATA_MATRIX(X_state);      // Occupancy covs
-  DATA_MATRIX(X_det);        // Detection covs
-  DATA_MATRIX(W);            // Area weights
+  // Names now match the data list sent from R/occuN.R
+  DATA_MATRIX(y);
+  DATA_MATRIX(X_lambda);
+  DATA_MATRIX(X_p);
+  DATA_SPARSE_MATRIX(w_mat);
 
   // ++ PARAMETERS ++ //
-  PARAMETER_VECTOR(beta_state);
-  PARAMETER_VECTOR(beta_det);
-
-  // ++ NEGATIVE LOG-LIKELIHOOD ++ //
-  Type nll = 0.0;
+  // Names now match the parameters list sent from R/occuN.R
+  PARAMETER_VECTOR(beta);
+  PARAMETER_VECTOR(alpha);
 
   // ++ PROCESS ++ //
   int M = y.rows(); // Number of sites
-  int T = y.cols(); // Number of samples
-  int J = W.cols(); // Number of raster cells
-
+  int T = y.cols(); // Number of observations
+  
   // -- Detection model -- //
   matrix<Type> p(M, T);
-  vector<Type> logit_p = X_det * beta_det;
-  int p_counter = 0;
+  vector<Type> logit_p_vec = X_p * alpha;
   for (int i = 0; i < M; i++){
     for (int j = 0; j < T; j++){
-      p(i,j) = invlogit(logit_p(p_counter));
-      p_counter++;
+      p(i,j) = invlogit(logit_p_vec(i*T + j));
     }
   }
 
   // -- Occupancy model -- //
-  // Correctly calculate log_lambda from covariates and coefficients
-  vector<Type> log_lambda = X_state * beta_state;
+  // CORRECT: Calculate log_lambda from covariates (X_lambda) and coefficients (beta)
+  vector<Type> log_lambda = X_lambda * beta;
   vector<Type> lambda = exp(log_lambda);
-  vector<Type> lambda_tilde = W * lambda;
-
-  vector<Type> psi(M);
-  for (int i = 0; i < M; i++){
-    psi(i) = 1.0 - exp(-lambda_tilde(i));
+  
+  // Re-define sparse matrix type for iterator
+  typedef Eigen::SparseMatrix<Type> spmat_t;
+  vector<Type> lambda_tilde(M);
+  lambda_tilde.setZero();
+  for (int i = 0; i < M; i++) {
+    for (typename spmat_t::InnerIterator it(w_mat, i); it; ++it) {
+      lambda_tilde(i) += it.value() * lambda(it.col());
+    }
   }
 
-  // -- Likelihood -- //
+  vector<Type> psi = 1.0 - exp(-lambda_tilde);
+
+  // -- NEGATIVE LOG-LIKELIHOOD -- //
+  Type nll = 0.0;
+  
   vector<Type> site_ndets(M);
   for (int i = 0; i < M; i++){
     site_ndets(i) = y.row(i).sum();
   }
 
   for (int i = 0; i < M; i++){
-
     Type log_lik_y_present = 0.0;
     for (int j = 0; j < T; j++) {
-      // Using dbinom is a clean way to get log-probability
       log_lik_y_present += dbinom(y(i,j), Type(1.0), p(i,j), true);
     }
 
-    Type psi_i = psi(i);
-
     if(site_ndets(i) == 0){
-      nll -= log(psi_i * exp(log_lik_y_present) + (1.0 - psi_i));
+      nll -= log(psi(i) * exp(log_lik_y_present) + (1.0 - psi(i)));
     } else {
-      nll -= log(psi_i) + log_lik_y_present;
+      nll -= log(psi(i)) + log_lik_y_present;
     }
   }
 
