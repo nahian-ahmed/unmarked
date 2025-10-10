@@ -71,7 +71,6 @@ Type tmb_occuN(objective_function<Type>* obj) {
   // ++ PARAMETERS ++ //
   PARAMETER_VECTOR(beta_state);
   PARAMETER_VECTOR(beta_det);
-  PARAMETER_VECTOR(log_lambda); // NNGP parameters
 
   // ++ NEGATIVE LOG-LIKELIHOOD ++ //
   Type nll = 0.0;
@@ -93,6 +92,8 @@ Type tmb_occuN(objective_function<Type>* obj) {
   }
 
   // -- Occupancy model -- //
+  // Correctly calculate log_lambda from covariates and coefficients
+  vector<Type> log_lambda = X_state * beta_state;
   vector<Type> lambda = exp(log_lambda);
   vector<Type> lambda_tilde = W * lambda;
 
@@ -109,36 +110,20 @@ Type tmb_occuN(objective_function<Type>* obj) {
 
   for (int i = 0; i < M; i++){
 
-    // P(y_i|Z_i=1)
     Type log_lik_y_present = 0.0;
     for (int j = 0; j < T; j++) {
-      if(y(i,j) == 0){
-        log_lik_y_present += log(1.0 - p(i,j));
-      } else {
-        log_lik_y_present += log(p(i,j));
-      }
+      // Using dbinom is a clean way to get log-probability
+      log_lik_y_present += dbinom(y(i,j), Type(1.0), p(i,j), true);
     }
 
     Type psi_i = psi(i);
 
-    // This is the corrected likelihood calculation
-    Type log_psi_i = log(psi_i);
-
     if(site_ndets(i) == 0){
-      // Site could be occupied with no detects, or unoccupied
-      Type log_lik_present = log_psi_i + log_lik_y_present;
-      Type log_lik_absent = log(1.0 - psi_i);
-      // Use logspace_add for numerical stability: log(exp(a) + exp(b))
-      nll -= logspace_add(log_lik_present, log_lik_absent);
+      nll -= log(psi_i * exp(log_lik_y_present) + (1.0 - psi_i));
     } else {
-      // Site must be occupied. The nll is -(log(psi) + log(P(y|Z=1)))
-      // The original code was effectively nll -= log(psi) + log(P(y|Z=1)), which was wrong.
-      // Correct way is to add the negative log-likelihoods.
-      nll -= log_psi_i;
-      nll -= log_lik_y_present;
+      nll -= log(psi_i) + log_lik_y_present;
     }
   }
-
 
   // ++ REPORTING ++ //
   REPORT(psi);
