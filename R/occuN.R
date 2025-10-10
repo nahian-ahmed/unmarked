@@ -114,11 +114,13 @@
 # # --------------------------------------------------------------------------
 
 # Define a new S4 class that extends unmarkedFrame and adds a slot for weights
+#' @export
 setClass("unmarkedFrameOccuN",
          slots = c(weights = "matrix"),
          contains = "unmarkedFrame")
 
 # Constructor for the unmarkedFrameOccuN class
+#' @export
 unmarkedFrameOccuN <- function(y, siteCovs = NULL, obsCovs = NULL, weights) {
   
   # Create a standard unmarkedFrame first
@@ -136,6 +138,7 @@ unmarkedFrameOccuN <- function(y, siteCovs = NULL, obsCovs = NULL, weights) {
 
 
 # Main occuN model fitting function
+#' @export
 occuN <- function(lambda_formula, det_formula, data, ...) {
 
   # Ensure data is the correct class
