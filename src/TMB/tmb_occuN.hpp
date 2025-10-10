@@ -51,7 +51,7 @@ Type tmb_occuN(objective_function<Type>* obj) {
   // --- Restore the original macro definition ---
   #pragma pop_macro("TMB_OBJECTIVE_PTR")
 
-  return -nll;
+  return nll;
 }
 
 #endif // End of the include guard
