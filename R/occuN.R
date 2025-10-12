@@ -1,7 +1,5 @@
-
-
 # Load TMB, which is needed for the model fitting
-library(TMB)
+# library(TMB)
 
 #' @export
 setClass("unmarkedFrameOccuN",
