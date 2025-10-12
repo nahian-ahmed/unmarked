@@ -35,8 +35,10 @@ Type tmb_occuN(objective_function<Type>* obj) {
   for (int i = 0; i < M; i++) {
     Type log_prob_y_given_occupied = 0.0;
     for (int t = 0; t < J; t++) {
-      Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p(i * J + t)));
-      log_prob_y_given_occupied += dbinom(y(i, t), Type(1.0), p_it, true);
+      if(!is_na(y(i,t))) {
+        Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p(i * J + t)));
+        log_prob_y_given_occupied += dbinom(y(i, t), Type(1.0), p_it, true);
+      } 
     }
 
     if (y.row(i).sum() > 0) {
