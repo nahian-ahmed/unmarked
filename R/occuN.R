@@ -1,5 +1,4 @@
-# Load TMB, which is needed for the model fitting
-# library(TMB)
+# A Latent Abundance Framework for Modeling Occupancy at Sites of Arbitrary Geometry
 
 #' @export
 setClass("unmarkedFrameOccuN",
