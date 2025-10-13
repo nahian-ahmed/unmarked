@@ -17,7 +17,7 @@ unmarkedFrameOccuN <- function(y, siteCovs = NULL, obsCovs = NULL,
                                cellCovs, w, mapInfo = NULL) {
 
     if(is.null(siteCovs)) {
-        siteCovs <- data.frame(site = 1:nrow(y))
+        siteCovs <- data.frame(site = seq_len(nrow(y)))
     }
     parentFrame <- unmarkedFrameOccu(y = y, siteCovs = siteCovs,
                                      obsCovs = obsCovs, mapInfo = mapInfo)

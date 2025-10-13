@@ -4,7 +4,7 @@
 template<class Type>
 Type tmb_occuN(objective_function<Type>* obj) {
 
-  // --- Data and Parameters ---
+  // Data and Parameters
   DATA_MATRIX(y);
   DATA_MATRIX(X);
   DATA_MATRIX(V);
@@ -15,7 +15,7 @@ Type tmb_occuN(objective_function<Type>* obj) {
 
   Type nll = 0.0;
 
-  // --- Model Logic ---
+  // Model Logic
   vector<Type> log_lambda_j = X * beta;
   vector<Type> lambda_j = exp(log_lambda_j);
   vector<Type> lambda_tilde_i = w * lambda_j;
