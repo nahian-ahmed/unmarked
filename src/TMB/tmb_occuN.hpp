@@ -10,6 +10,9 @@ Type tmb_occuN(objective_function<Type>* obj) {
   DATA_MATRIX(V);
   DATA_MATRIX(w);
 
+  DATA_SCALAR(lambda_reg_beta);
+  DATA_SCALAR(lambda_reg_alpha);
+
   PARAMETER_VECTOR(alpha);
   PARAMETER_VECTOR(beta);
 
@@ -40,6 +43,16 @@ Type tmb_occuN(objective_function<Type>* obj) {
       Type prob_unoccupied = Type(1.0) - psi_i(i);
       nll -= log(prob_occupied_missed + prob_unoccupied);
     }
+  }
+
+  // L2 penalty for beta (state)
+  if(beta.size() > 1) {
+    nll += lambda_reg_beta * (beta.segment(1, beta.size() - 1).square().sum());
+  }
+
+  // L2 penalty for alpha (detection)
+  if(alpha.size() > 1) {
+    nll += lambda_reg_alpha * (alpha.segment(1, alpha.size() - 1).square().sum());
   }
 
   return nll;

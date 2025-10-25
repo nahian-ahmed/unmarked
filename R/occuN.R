@@ -50,7 +50,8 @@ setMethod("getDesign", "unmarkedFrameOccuN",
 
 #' @export
 occuN <- function(formula, data,
-                  starts, method = "BFGS", control = list(), se = TRUE) {
+                  starts, method = "BFGS", control = list(), se = TRUE,
+                  lambda_reg_alpha = 0, lambda_reg_beta = 0) {
 
     if(!is(data, "unmarkedFrameOccuN")) {
         stop("Data is not an object of class unmarkedFrameOccuN.")
@@ -60,7 +61,9 @@ occuN <- function(formula, data,
     
     tmb_data <- list(model = "tmb_occuN",
                      y = designMats$y, X = designMats$X,
-                     V = designMats$V, w = data@w)
+                     V = designMats$V, w = data@w,
+                    lambda_reg_alpha = lambda_reg_alpha,
+                    lambda_reg_beta = lambda_reg_beta)
     
     n_alpha <- ncol(designMats$V)
     n_beta <- ncol(designMats$X)
