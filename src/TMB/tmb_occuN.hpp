@@ -27,7 +27,6 @@ Type tmb_occuN(objective_function<Type>* obj) {
   vector<Type> psi_i = Type(1.0) - exp(-lambda_tilde_i);
   int M = y.rows();
   int J = y.cols();
-  // vector<Type> logit_p = V * alpha;
   vector<Type> logit_p_base = V * alpha;
 
   for (int i = 0; i < M; i++) {
@@ -37,7 +36,6 @@ Type tmb_occuN(objective_function<Type>* obj) {
       if(y(i,t) == y(i,t)) {
         Type logit_p_final_it = logit_p_base(i * J + t) + alpha_lambda * log_lambda_i;
         Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p_final_it));
-        // Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p(i * J + t)));
         log_prob_y_given_occupied += dbinom(y(i, t), Type(1.0), p_it, true);
       }
     }
@@ -51,29 +49,20 @@ Type tmb_occuN(objective_function<Type>* obj) {
     }
   }
 
-  // L2 penalty for beta (state)
+
   if(beta.size() > 1) {
     nll += lambda_reg_beta * (beta.segment(1, beta.size() - 1).square().sum());
   }
 
-  // // L2 penalty for alpha (detection)
-  // if(alpha.size() > 1) {
-  //   nll += lambda_reg_alpha * (alpha.segment(1, alpha.size() - 1).square().sum());
-  // }
 
-
-  // L2 penalty for all detection parameters (alpha vector + alpha_lambda)
   Type det_penalty_sumsq = 0.0;
   
-  // 1. Add penalties for the alpha vector (skipping intercept)
   if(alpha.size() > 1) {
     det_penalty_sumsq += alpha.segment(1, alpha.size() - 1).square().sum();
   }
   
-  // 2. Add penalty for the alpha_lambda scalar
-  det_penalty_sumsq += pow(alpha_lambda, 2.0); // or (alpha_lambda * alpha_lambda)
+  det_penalty_sumsq += pow(alpha_lambda, 2.0);
   
-  // 3. Apply the final penalty
   nll += lambda_reg_alpha * det_penalty_sumsq;
 
 
