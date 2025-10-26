@@ -56,10 +56,26 @@ Type tmb_occuN(objective_function<Type>* obj) {
     nll += lambda_reg_beta * (beta.segment(1, beta.size() - 1).square().sum());
   }
 
-  // L2 penalty for alpha (detection)
+  // // L2 penalty for alpha (detection)
+  // if(alpha.size() > 1) {
+  //   nll += lambda_reg_alpha * (alpha.segment(1, alpha.size() - 1).square().sum());
+  // }
+
+
+  // L2 penalty for all detection parameters (alpha vector + alpha_lambda)
+  Type det_penalty_sumsq = 0.0;
+  
+  // 1. Add penalties for the alpha vector (skipping intercept)
   if(alpha.size() > 1) {
-    nll += lambda_reg_alpha * (alpha.segment(1, alpha.size() - 1).square().sum());
+    det_penalty_sumsq += alpha.segment(1, alpha.size() - 1).square().sum();
   }
+  
+  // 2. Add penalty for the alpha_lambda scalar
+  det_penalty_sumsq += pow(alpha_lambda, 2.0); // or (alpha_lambda * alpha_lambda)
+  
+  // 3. Apply the final penalty
+  nll += lambda_reg_alpha * det_penalty_sumsq;
+
 
   return nll;
 }
