@@ -67,13 +67,18 @@ occuN <- function(formula, data,
     
     n_alpha <- ncol(designMats$V)
     n_beta <- ncol(designMats$X)
-    n_pars <- n_alpha + n_beta
+    n_pars <- n_alpha + n_beta + 1
 
     if(missing(starts)) {
         starts <- rep(0, n_pars)
     }
+    # tmb_params <- list(alpha = starts[1:n_alpha],
+    #                    beta = starts[(n_alpha + 1):n_pars])
+
     tmb_params <- list(alpha = starts[1:n_alpha],
-                       beta = starts[(n_alpha + 1):n_pars])
+                       beta = starts[(n_alpha + 1):(n_alpha + n_beta)],
+                       alpha_lambda = starts[n_pars])
+
 
     obj <- TMB::MakeADFun(data = tmb_data, parameters = tmb_params,
                           DLL = "unmarked_TMBExports", silent = TRUE)
@@ -97,10 +102,20 @@ occuN <- function(formula, data,
                                   covMat = sd_rep$cov.fixed[1:n_beta, 1:n_beta],
                                   invlink = "exp", invlinkGrad = "exp")
 
+    # det_est <- unmarkedEstimate(name = "Detection", short.name = "p",
+    #                             estimates = est_mat[(n_beta + 1):n_pars, 1],
+    #                             covMat = sd_rep$cov.fixed[(n_beta + 1):n_pars, (n_beta + 1):n_pars],
+    #                             invlink = "logistic", invlinkGrad = "logistic.grad")
+
     det_est <- unmarkedEstimate(name = "Detection", short.name = "p",
-                                estimates = est_mat[(n_beta + 1):n_pars, 1],
-                                covMat = sd_rep$cov.fixed[(n_beta + 1):n_pars, (n_beta + 1):n_pars],
+                                estimates = est_mat[(n_beta + 1):(n_beta + n_alpha), 1],
+                                covMat = sd_rep$cov.fixed[(n_beta + 1):(n_beta + n_alpha), (n_beta + 1):(n_beta + n_alpha)],
                                 invlink = "logistic", invlinkGrad = "logistic.grad")
+
+    abun_effect_est <- unmarkedEstimate(name = "Abundance effect on Detection", short.name = "p(lam)",
+                                    estimates = est_mat[n_pars, 1], # The last parameter
+                                    covMat = as.matrix(sd_rep$cov.fixed[n_pars, n_pars]), # The last row/col
+                                    invlink = "identity", invlinkGrad = "identity")
 
     fit <- new("unmarkedFitOccuN",
                fitType = "occuN",
@@ -108,7 +123,8 @@ occuN <- function(formula, data,
                formula = formula,
                data = data,
                sitesRemoved = numeric(0),
-               estimates = unmarkedEstimateList(list(state=state_est, det=det_est)),
+               estimates = unmarkedEstimateList(list(state=state_est, det=det_est, abun_effect=abun_effect_est)),
+            #    estimates = unmarkedEstimateList(list(state=state_est, det=det_est)),
                # NEW: Use the standardized nll variable
                AIC = 2 * nll + 2 * n_pars,
                opt = opt,

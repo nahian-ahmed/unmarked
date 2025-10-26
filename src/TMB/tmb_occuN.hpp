@@ -16,6 +16,8 @@ Type tmb_occuN(objective_function<Type>* obj) {
   PARAMETER_VECTOR(alpha);
   PARAMETER_VECTOR(beta);
 
+  PARAMETER(alpha_lambda);
+
   Type nll = 0.0;
 
   // Model Logic
@@ -25,13 +27,17 @@ Type tmb_occuN(objective_function<Type>* obj) {
   vector<Type> psi_i = Type(1.0) - exp(-lambda_tilde_i);
   int M = y.rows();
   int J = y.cols();
-  vector<Type> logit_p = V * alpha;
+  // vector<Type> logit_p = V * alpha;
+  vector<Type> logit_p_base = V * alpha;
 
   for (int i = 0; i < M; i++) {
     Type log_prob_y_given_occupied = 0.0;
+    Type log_lambda_i = log(lambda_tilde_i(i));
     for (int t = 0; t < J; t++) {
       if(y(i,t) == y(i,t)) {
-        Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p(i * J + t)));
+        Type logit_p_final_it = logit_p_base(i * J + t) + alpha_lambda * log_lambda_i;
+        Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p_final_it));
+        // Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p(i * J + t)));
         log_prob_y_given_occupied += dbinom(y(i, t), Type(1.0), p_it, true);
       }
     }
