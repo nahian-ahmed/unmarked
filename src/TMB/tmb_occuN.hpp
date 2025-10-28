@@ -10,13 +10,8 @@ Type tmb_occuN(objective_function<Type>* obj) {
   DATA_MATRIX(V);
   DATA_MATRIX(w);
 
-  DATA_SCALAR(lambda_reg_beta);
-  DATA_SCALAR(lambda_reg_alpha);
-
   PARAMETER_VECTOR(alpha);
   PARAMETER_VECTOR(beta);
-
-  PARAMETER(alpha_lambda);
 
   Type nll = 0.0;
 
@@ -31,10 +26,9 @@ Type tmb_occuN(objective_function<Type>* obj) {
 
   for (int i = 0; i < M; i++) {
     Type log_prob_y_given_occupied = 0.0;
-    Type log_lambda_i = log(lambda_tilde_i(i));
     for (int t = 0; t < J; t++) {
       if(y(i,t) == y(i,t)) {
-        Type logit_p_final_it = logit_p_base(i * J + t) + alpha_lambda * log_lambda_i;
+        Type logit_p_final_it = logit_p_base(i * J + t);
         Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p_final_it));
         log_prob_y_given_occupied += dbinom(y(i, t), Type(1.0), p_it, true);
       }
@@ -48,23 +42,6 @@ Type tmb_occuN(objective_function<Type>* obj) {
       nll -= log(prob_occupied_missed + prob_unoccupied);
     }
   }
-
-
-  if(beta.size() > 1) {
-    nll += lambda_reg_beta * (beta.segment(1, beta.size() - 1).square().sum());
-  }
-
-
-  Type det_penalty_sumsq = 0.0;
-  
-  if(alpha.size() > 1) {
-    det_penalty_sumsq += alpha.segment(1, alpha.size() - 1).square().sum();
-  }
-  
-  det_penalty_sumsq += pow(alpha_lambda, 2.0);
-  
-  nll += lambda_reg_alpha * det_penalty_sumsq;
-
 
   return nll;
 }
