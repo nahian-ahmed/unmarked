@@ -22,14 +22,15 @@ Type tmb_occuN(objective_function<Type>* obj) {
   vector<Type> psi_i = Type(1.0) - exp(-lambda_tilde_i);
   int M = y.rows();
   int J = y.cols();
-  vector<Type> logit_p_base = V * alpha;
+  vector<Type> logit_p = V * alpha;
 
   for (int i = 0; i < M; i++) {
     Type log_prob_y_given_occupied = 0.0;
     for (int t = 0; t < J; t++) {
       if(y(i,t) == y(i,t)) {
-        Type logit_p_final_it = logit_p_base(i * J + t);
-        Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p_final_it));
+        Type logit_p_it = logit_p(i * J + t); 
+        Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p_it));
+        
         log_prob_y_given_occupied += dbinom(y(i, t), Type(1.0), p_it, true);
       }
     }
