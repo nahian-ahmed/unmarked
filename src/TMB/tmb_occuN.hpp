@@ -29,9 +29,27 @@ Type tmb_occuN(objective_function<Type>* obj) {
     for (int t = 0; t < J; t++) {
       if(y(i,t) == y(i,t)) {
         Type logit_p_it = logit_p(i * J + t); 
-        Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p_it));
+        // Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p_it));
         
-        log_prob_y_given_occupied += dbinom(y(i, t), Type(1.0), p_it, true);
+        // log_prob_y_given_occupied += dbinom(y(i, t), Type(1.0), p_it, true);
+
+
+        // NEW: Robust log-likelihood calculation
+        // This calculates dbinom(y, 1, plogis(logit_p_it), log=TRUE)
+        // without ever producing Inf.
+
+        // log(p) = -log(1 + exp(-logit))
+        Type log_p_it = -logspace_add(Type(0.0), -logit_p_it);
+        // log(1-p) = -logit - log(1 + exp(-logit))
+        Type log_one_minus_p_it = -logit_p_it + log_p_it;
+
+        if (y(i, t) == 1.0) {
+            log_prob_y_given_occupied += log_p_it;
+        } else {
+            log_prob_y_given_occupied += log_one_minus_p_it;
+        }
+
+
       }
     }
 
