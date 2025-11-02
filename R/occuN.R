@@ -87,11 +87,21 @@ occuN <- function(formula, data,
                           DLL = "unmarked_TMBExports", silent = TRUE)
 
     # Use a switch to select the optimizer based on the 'method' argument
-    opt <- switch(method,
-                  "nlminb" = nlminb(obj$par, obj$fn, obj$gr, control = control),
-                  # All other methods use optim()
-                  optim(obj$par, obj$fn, obj$gr, method = method, control = control)
-    )
+    # opt <- switch(method,
+    #               "nlminb" = nlminb(obj$par, obj$fn, obj$gr, control = control),
+    #               # All other methods use optim()
+    #               optim(obj$par, obj$fn, obj$gr, method = method, control = control)
+    # )  
+
+    if (method == "nlminb") {
+        opt <- nlminb(obj$par, obj$fn, obj$gr, control = control)
+    } else if (method %in% c("Nelder-Mead", "SANN")) {
+        # Methods that DO NOT use gradients
+        opt <- optim(obj$par, obj$fn, method = method, control = control)
+    } else {
+        # Methods that DO use gradients (e.g., "BFGS", "L-BFGS-B", "CG")
+        opt <- optim(obj$par, obj$fn, obj$gr, method = method, control = control)
+    }
 
     # Handle slightly different output formats from nlminb and optim
     # The negative log-likelihood is in 'objective' for nlminb and 'value' for optim
