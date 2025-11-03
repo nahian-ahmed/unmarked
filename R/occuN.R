@@ -111,17 +111,31 @@ occuN <- function(formula, data,
     est_mat <- summary(sd_rep, "fixed")
 
 
-    det_est <- unmarkedEstimate(name = "Detection", short.name = "p",
-                                estimates = est_mat[1:n_alpha, 1],
-                                covMat = sd_rep$cov.fixed[1:n_alpha, 1:n_alpha],
-                                invlink = "logistic", invlinkGrad = "logistic.grad")
+    # det_est <- unmarkedEstimate(name = "Detection", short.name = "p",
+    #                             estimates = est_mat[1:n_alpha, 1],
+    #                             covMat = sd_rep$cov.fixed[1:n_alpha, 1:n_alpha],
+    #                             invlink = "logistic", invlinkGrad = "logistic.grad")
 
 
 
+    # state_est <- unmarkedEstimate(name = "State", short.name = "lam",
+    #                               estimates = est_mat[(n_alpha + 1):n_pars, 1],
+    #                               covMat = sd_rep$cov.fixed[(n_alpha + 1):n_pars, (n_alpha + 1):n_pars],
+    #                               invlink = "exp", invlinkGrad = "exp")
+
+
+
+    # FIX: 'state' (beta) is SECOND in the parameter list
     state_est <- unmarkedEstimate(name = "State", short.name = "lam",
                                   estimates = est_mat[(n_alpha + 1):n_pars, 1],
                                   covMat = sd_rep$cov.fixed[(n_alpha + 1):n_pars, (n_alpha + 1):n_pars],
                                   invlink = "exp", invlinkGrad = "exp")
+
+    # FIX: 'det' (alpha) is FIRST in the parameter list
+    det_est <- unmarkedEstimate(name = "Detection", short.name = "p",
+                                estimates = est_mat[1:n_alpha, 1],
+                                covMat = sd_rep$cov.fixed[1:n_alpha, 1:n_alpha],
+                                invlink = "logistic", invlinkGrad = "logistic.grad")
 
 
     fit <- new("unmarkedFitOccuN",
