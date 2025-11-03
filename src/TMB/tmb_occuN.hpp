@@ -69,7 +69,7 @@ Type tmb_occuN(objective_function<Type>* obj) {
       if(y(i,t) == y(i,t)) { // Check for NA
         Type logit_p_it = logit_p(i * J + t); 
 
-        // Robust detection log-likelihood (you already have this)
+        // Robust detection log-likelihood (This part is correct)
         Type log_p_it = -logspace_add(Type(0.0), -logit_p_it);
         Type log_one_minus_p_it = -logit_p_it + log_p_it;
 
@@ -81,30 +81,29 @@ Type tmb_occuN(objective_function<Type>* obj) {
       }
     }
 
-    // --- NEW ROBUST STATE LIKELIHOOD ---
+    // --- ROBUST STATE LIKELIHOOD ---
     
     Type lambda_tilde_i_current = lambda_tilde_i(i);
     
     // Calculate log(psi_i) = log(1 - exp(-lambda_tilde_i))
-    // Use log1mexp() which is robust to lambda_tilde_i being near 0
-    Type log_psi_i = log1mexp(lambda_tilde_i_current);
+    // Use log1mexp() which is robust.
+    //
+    // --- THE FIX IS HERE: ---
+    // Add a tiny epsilon (1e-15) to prevent log(0) if lambda_tilde_i is exactly 0.
+    Type log_psi_i = log1mexp(lambda_tilde_i_current + 1e-15);
 
     // Calculate log(1 - psi_i) = log(exp(-lambda_tilde_i))
+    // This part was already stable.
     Type log_one_minus_psi_i = -lambda_tilde_i_current;
 
-    // --- End new robust part ---
+    // --- End robust part ---
 
     if (y.row(i).sum() > 0) {
       // Site was occupied and detected
-      // nll -= log(psi_i) + log_prob_y_given_occupied
       nll -= log_psi_i + log_prob_y_given_occupied;
 
     } else {
       // Site was not detected
-      // nll -= log( prob_occupied_missed + prob_unoccupied )
-      // nll -= log( psi_i * exp(log_prob_y) + (1-psi_i) )
-      // nll -= log( exp(log_psi_i + log_prob_y) + exp(log_one_minus_psi_i) )
-      
       Type log_prob_occupied_missed = log_psi_i + log_prob_y_given_occupied;
       
       // Use logspace_add() for robustly adding probabilities in log-space
