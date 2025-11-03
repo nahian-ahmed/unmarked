@@ -86,12 +86,11 @@ Type tmb_occuN(objective_function<Type>* obj) {
     Type lambda_tilde_i_current = lambda_tilde_i(i);
     
     // Calculate log(psi_i) = log(1 - exp(-lambda_tilde_i))
-    // We must use the robust TMB equivalent of log1mexp(x), 
-    // which is log(-expm1(-x)).
     //
-    // --- THIS IS THE FINAL FIX ---
+    // --- THIS IS THE FINAL FIX (using TMB's logspace_sub) ---
+    // logspace_sub(0, -x) = log(exp(0) - exp(-x)) = log(1 - exp(-x))
     // The epsilon is still required to prevent log(0) when lambda_tilde_i is exactly 0.
-    Type log_psi_i = log(-expm1(-(lambda_tilde_i_current + 1e-15)));
+    Type log_psi_i = logspace_sub(Type(0.0), -(lambda_tilde_i_current + 1e-15));
 
     // Calculate log(1 - psi_i) = log(exp(-lambda_tilde_i))
     Type log_one_minus_psi_i = -lambda_tilde_i_current;
