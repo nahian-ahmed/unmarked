@@ -24,44 +24,6 @@ Type tmb_occuN(objective_function<Type>* obj) {
   int J = y.cols();
   vector<Type> logit_p = V * alpha;
 
-  // for (int i = 0; i < M; i++) {
-  //   Type log_prob_y_given_occupied = 0.0;
-  //   for (int t = 0; t < J; t++) {
-  //     if(y(i,t) == y(i,t)) {
-  //       Type logit_p_it = logit_p(i * J + t); 
-  //       // Type p_it = Type(1.0) / (Type(1.0) + exp(-logit_p_it));
-        
-  //       // log_prob_y_given_occupied += dbinom(y(i, t), Type(1.0), p_it, true);
-
-
-  //       // NEW: Robust log-likelihood calculation
-  //       // This calculates dbinom(y, 1, plogis(logit_p_it), log=TRUE)
-  //       // without ever producing Inf.
-
-  //       // log(p) = -log(1 + exp(-logit))
-  //       Type log_p_it = -logspace_add(Type(0.0), -logit_p_it);
-  //       // log(1-p) = -logit - log(1 + exp(-logit))
-  //       Type log_one_minus_p_it = -logit_p_it + log_p_it;
-
-  //       if (y(i, t) == 1.0) {
-  //           log_prob_y_given_occupied += log_p_it;
-  //       } else {
-  //           log_prob_y_given_occupied += log_one_minus_p_it;
-  //       }
-
-
-  //     }
-  //   }
-
-  //   if (y.row(i).sum() > 0) {
-  //     nll -= log(psi_i(i)) + log_prob_y_given_occupied;
-  //   } else {
-  //     Type prob_occupied_missed = psi_i(i) * exp(log_prob_y_given_occupied);
-  //     Type prob_unoccupied = Type(1.0) - psi_i(i);
-  //     nll -= log(prob_occupied_missed + prob_unoccupied);
-  //   }
-  // }
-
 
   for (int i = 0; i < M; i++) {
     Type log_prob_y_given_occupied = 0.0;
@@ -69,7 +31,6 @@ Type tmb_occuN(objective_function<Type>* obj) {
       if(y(i,t) == y(i,t)) { // Check for NA
         Type logit_p_it = logit_p(i * J + t); 
 
-        // Robust detection log-likelihood (This part is correct)
         Type log_p_it = -logspace_add(Type(0.0), -logit_p_it);
         Type log_one_minus_p_it = -logit_p_it + log_p_it;
 
@@ -81,13 +42,10 @@ Type tmb_occuN(objective_function<Type>* obj) {
       }
     }
 
-    // --- ROBUST STATE LIKELIHOOD ---
     
     Type lambda_tilde_i_current = lambda_tilde_i(i);
     
     // Calculate log(psi_i) = log(1 - exp(-lambda_tilde_i))
-    //
-    // --- THIS IS THE FINAL FIX (using TMB's logspace_sub) ---
     // logspace_sub(0, -x) = log(exp(0) - exp(-x)) = log(1 - exp(-x))
     // The epsilon is still required to prevent log(0) when lambda_tilde_i is exactly 0.
     Type log_psi_i = logspace_sub(Type(0.0), -(lambda_tilde_i_current + 1e-15));
@@ -95,8 +53,7 @@ Type tmb_occuN(objective_function<Type>* obj) {
     // Calculate log(1 - psi_i) = log(exp(-lambda_tilde_i))
     Type log_one_minus_psi_i = -lambda_tilde_i_current;
 
-    // --- End robust part ---
-
+    
     if (y.row(i).sum() > 0) {
       // Site was occupied and detected
       nll -= log_psi_i + log_prob_y_given_occupied;
