@@ -112,9 +112,13 @@ occuN <- function(formula, data,
 
     designMats <- getDesign(data, formula)
     
+    # tmb_data <- list(model = "tmb_occuN",
+    #                  y = designMats$y, X = designMats$X,
+    #                  V = designMats$V, w = data@w)
+
     tmb_data <- list(model = "tmb_occuN",
-                     y = designMats$y, X = designMats$X,
-                     V = designMats$V, w = data@w)
+                 y = as.integer(designMats$y), X = designMats$X,
+                 V = designMats$V, w = data@w)
     
     n_alpha <- ncol(designMats$V)
     n_beta <- ncol(designMats$X)
