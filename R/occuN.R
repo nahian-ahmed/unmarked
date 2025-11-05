@@ -29,6 +29,34 @@ unmarkedFrameOccuN <- function(y, siteCovs = NULL, obsCovs = NULL,
 
 
 # Custom getDesign method
+# setMethod("getDesign", "unmarkedFrameOccuN",
+#     function(umf, formula, na.rm = TRUE) {
+        
+#         M <- numSites(umf)
+#         J <- obsNum(umf)
+        
+#         det_formula <- as.formula(formula[[2]])
+#         state_formula <- as.formula(paste("~", formula[3], sep=""))
+#         sc <- umf@siteCovs
+        
+#         if(nrow(sc) > 0) 
+#             sc <- sc[rep(1:M, each = J), , drop = FALSE]
+        
+#         oc <- as.data.frame(lapply(umf@obsCovs, as.vector))
+#         det_data <- cbind(sc, oc)
+        
+#         mf_det <- model.frame(det_formula, det_data, na.action = na.pass)
+#         V_design <- model.matrix(det_formula, mf_det)
+#         mf_state <- model.frame(state_formula, umf@cellCovs, na.action = na.pass)
+#         X_design <- model.matrix(state_formula, mf_state)
+        
+#         y <- getY(umf)
+        
+#         return(list(y = y, X = X_design, V = V_design))
+# })
+
+
+# Custom getDesign method
 setMethod("getDesign", "unmarkedFrameOccuN",
     function(umf, formula, na.rm = TRUE) {
         
@@ -37,8 +65,15 @@ setMethod("getDesign", "unmarkedFrameOccuN",
         
         det_formula <- as.formula(formula[[2]])
         state_formula <- as.formula(paste("~", formula[3], sep=""))
-        sc <- umf@siteCovs
         
+        # --- State design matrix (X) ---
+        # This part was correct
+        mf_state <- model.frame(state_formula, umf@cellCovs, na.action = na.pass)
+        X_design <- model.matrix(state_formula, mf_state)
+
+        # --- Detection design matrix (V) ---
+        # This part was also correct
+        sc <- umf@siteCovs
         if(nrow(sc) > 0) 
             sc <- sc[rep(1:M, each = J), , drop = FALSE]
         
@@ -47,10 +82,21 @@ setMethod("getDesign", "unmarkedFrameOccuN",
         
         mf_det <- model.frame(det_formula, det_data, na.action = na.pass)
         V_design <- model.matrix(det_formula, mf_det)
-        mf_state <- model.frame(state_formula, umf@cellCovs, na.action = na.pass)
-        X_design <- model.matrix(state_formula, mf_state)
         
-        y <- getY(umf)
+        # --- Response vector (y) ---
+        # THIS IS THE FIX: Vectorize y and handle NAs
+        
+        y <- as.vector(t(getY(umf))) # Transpose and vectorize
+        
+        # Handle NAs
+        if (na.rm) {
+            na.inds <- which(is.na(y))
+            if (length(na.inds) > 0) {
+                # Remove NAs from y and corresponding rows from V
+                y <- y[-na.inds]
+                V_design <- V_design[-na.inds, , drop = FALSE]
+            }
+        }
         
         return(list(y = y, X = X_design, V = V_design))
 })
@@ -105,7 +151,7 @@ occuN <- function(formula, data,
     if (method != "nlminb") {
         obj$fn(opt$par) 
     }
-    
+
     sd_rep <- TMB::sdreport(obj)
     est_mat <- summary(sd_rep, "fixed")
 
