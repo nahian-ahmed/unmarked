@@ -86,20 +86,15 @@ occuN <- function(formula, data,
     obj <- TMB::MakeADFun(data = tmb_data, parameters = tmb_params,
                           DLL = "unmarked_TMBExports", silent = TRUE)
 
-    # Use a switch to select the optimizer based on the 'method' argument
-    # opt <- switch(method,
-    #               "nlminb" = nlminb(obj$par, obj$fn, obj$gr, control = control),
-    #               # All other methods use optim()
-    #               optim(obj$par, obj$fn, obj$gr, method = method, control = control)
-    # )  
+
 
     if (method == "nlminb") {
         opt <- nlminb(obj$par, obj$fn, obj$gr, control = control)
     } else if (method %in% c("Nelder-Mead", "SANN")) {
-        # Methods that DO NOT use gradients
+        # Methods that do not use gradients
         opt <- optim(obj$par, obj$fn, method = method, control = control)
     } else {
-        # Methods that DO use gradients (e.g., "BFGS", "L-BFGS-B", "CG")
+        # Methods that do use gradients (e.g., "BFGS", "L-BFGS-B", "CG")
         opt <- optim(obj$par, obj$fn, obj$gr, method = method, control = control)
     }
 
@@ -111,27 +106,13 @@ occuN <- function(formula, data,
     est_mat <- summary(sd_rep, "fixed")
 
 
-    # det_est <- unmarkedEstimate(name = "Detection", short.name = "p",
-    #                             estimates = est_mat[1:n_alpha, 1],
-    #                             covMat = sd_rep$cov.fixed[1:n_alpha, 1:n_alpha],
-    #                             invlink = "logistic", invlinkGrad = "logistic.grad")
-
-
-
-    # state_est <- unmarkedEstimate(name = "State", short.name = "lam",
-    #                               estimates = est_mat[(n_alpha + 1):n_pars, 1],
-    #                               covMat = sd_rep$cov.fixed[(n_alpha + 1):n_pars, (n_alpha + 1):n_pars],
-    #                               invlink = "exp", invlinkGrad = "exp")
-
-
-
-    # 'state' (beta) is SECOND in the parameter list
+    # 'state' (beta) is second in the parameter list
     state_est <- unmarkedEstimate(name = "State", short.name = "lam",
                                   estimates = est_mat[(n_alpha + 1):n_pars, 1],
                                   covMat = sd_rep$cov.fixed[(n_alpha + 1):n_pars, (n_alpha + 1):n_pars],
                                   invlink = "exp", invlinkGrad = "exp")
 
-    # 'det' (alpha) is FIRST in the parameter list
+    # 'det' (alpha) is first in the parameter list
     det_est <- unmarkedEstimate(name = "Detection", short.name = "p",
                                 estimates = est_mat[1:n_alpha, 1],
                                 covMat = sd_rep$cov.fixed[1:n_alpha, 1:n_alpha],
