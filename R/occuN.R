@@ -102,6 +102,10 @@ occuN <- function(formula, data,
     # The negative log-likelihood is in 'objective' for nlminb and 'value' for optim
     nll <- if (method == "nlminb") opt$objective else opt$value
     
+    if (method != "nlminb") {
+        obj$fn(opt$par) 
+    }
+    
     sd_rep <- TMB::sdreport(obj)
     est_mat <- summary(sd_rep, "fixed")
 
