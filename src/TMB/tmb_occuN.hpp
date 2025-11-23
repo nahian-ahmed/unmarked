@@ -8,7 +8,8 @@ Type tmb_occuN(objective_function<Type>* obj) {
   DATA_MATRIX(y);
   DATA_MATRIX(X);
   DATA_MATRIX(V);
-  DATA_MATRIX(w);
+  // DATA_MATRIX(w);
+  DATA_SPARSE_MATRIX(w);
 
   PARAMETER_VECTOR(alpha);
   PARAMETER_VECTOR(beta);
