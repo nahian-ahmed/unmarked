@@ -17,7 +17,7 @@ importFrom(methods, is, as, new, show, slot, .hasSlot, callGeneric,
            callNextMethod, setMethod)
 importFrom(lattice, xyplot, levelplot)
 importFrom(Rcpp, evalCpp)
-
+importClassesFrom(Matrix, dgCMatrix)
 
 # Fitting functions
 export(occu, occuFP, occuRN, pcount, pcountOpen, multinomPois, distsamp,
