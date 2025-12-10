@@ -73,6 +73,7 @@ occuN <- function(formula, data,
     stop("Data is not an object of class unmarkedFrameOccuN.")
   }
 
+  print("NEW ONE")
   designMats <- getDesign(data, formula)
   
   tmb_data <- list(model = "tmb_occuN",
