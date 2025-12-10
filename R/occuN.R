@@ -121,21 +121,17 @@ occuN <- function(formula, data,
     est_mat <- summary(sd_rep, "fixed")
     
     ests_alpha   <- est_mat[1:n_alpha, 1]
-    se_alpha     <- est_mat[1:n_alpha, 2]
     covMat_alpha <- sd_rep$cov.fixed[1:n_alpha, 1:n_alpha]
     
     ests_beta    <- est_mat[(n_alpha + 1):n_pars, 1]
-    se_beta      <- est_mat[(n_alpha + 1):n_pars, 2]
     covMat_beta  <- sd_rep$cov.fixed[(n_alpha + 1):n_pars, (n_alpha + 1):n_pars]
     
   } else {
     # If SE is FALSE, fill with NAs to save time
     ests_alpha   <- ests[1:n_alpha]
-    se_alpha     <- rep(NA, n_alpha)
     covMat_alpha <- matrix(NA, n_alpha, n_alpha)
     
     ests_beta    <- ests[(n_alpha + 1):n_pars]
-    se_beta      <- rep(NA, n_beta)
     covMat_beta  <- matrix(NA, n_beta, n_beta)
   }
 
