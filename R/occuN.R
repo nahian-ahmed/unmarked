@@ -67,13 +67,13 @@ setMethod("getDesign", "unmarkedFrameOccuN",
 #' @export
 occuN <- function(formula, data,
                   starts, method = "BFGS", control = list(), se = TRUE,
-                  lower = -Inf, upper = Inf) { # <--- 1. Added lower and upper arguments
+                  lower = -Inf, upper = Inf) {
 
   if(!is(data, "unmarkedFrameOccuN")) {
     stop("Data is not an object of class unmarkedFrameOccuN.")
   }
 
-  print("NEW ONE")
+  print("NEW ONE WITH SE")
   designMats <- getDesign(data, formula)
   
   tmb_data <- list(model = "tmb_occuN",
@@ -94,7 +94,7 @@ occuN <- function(formula, data,
   obj <- TMB::MakeADFun(data = tmb_data, parameters = tmb_params,
                         DLL = "unmarked_TMBExports", silent = TRUE)
 
-  # <--- 2. Modified optimization calls to include lower and upper
+  
   if (method == "nlminb") {
     opt <- nlminb(obj$par, obj$fn, obj$gr, control = control, 
                   lower = lower, upper = upper)
