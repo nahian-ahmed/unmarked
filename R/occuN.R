@@ -66,7 +66,8 @@ setMethod("getDesign", "unmarkedFrameOccuN",
 
 #' @export
 occuN <- function(formula, data,
-          starts, method = "BFGS", control = list(), se = TRUE) {
+                  starts, method = "BFGS", control = list(), se = TRUE,
+                  lower = -Inf, upper = Inf) { # <--- 1. Added lower and upper arguments
 
   if(!is(data, "unmarkedFrameOccuN")) {
     stop("Data is not an object of class unmarkedFrameOccuN.")
@@ -75,8 +76,8 @@ occuN <- function(formula, data,
   designMats <- getDesign(data, formula)
   
   tmb_data <- list(model = "tmb_occuN",
-           y = designMats$y, X = designMats$X,
-           V = designMats$V, w = data@w)
+                   y = designMats$y, X = designMats$X,
+                   V = designMats$V, w = data@w)
 
   n_alpha <- ncol(designMats$V)
   n_beta <- ncol(designMats$X)
@@ -86,28 +87,28 @@ occuN <- function(formula, data,
     starts <- rep(0, n_pars)
   }
 
-
   tmb_params <- list(alpha = starts[1:n_alpha],
-             beta = starts[(n_alpha + 1):n_pars])
-
+                     beta = starts[(n_alpha + 1):n_pars])
 
   obj <- TMB::MakeADFun(data = tmb_data, parameters = tmb_params,
-              DLL = "unmarked_TMBExports", silent = TRUE)
+                        DLL = "unmarked_TMBExports", silent = TRUE)
 
-
-
+  # <--- 2. Modified optimization calls to include lower and upper
   if (method == "nlminb") {
-    opt <- nlminb(obj$par, obj$fn, obj$gr, control = control)
+    opt <- nlminb(obj$par, obj$fn, obj$gr, control = control, 
+                  lower = lower, upper = upper)
   } else if (method %in% c("Nelder-Mead", "SANN")) {
     # Methods that do not use gradients
-    opt <- optim(obj$par, obj$fn, method = method, control = control)
+    opt <- optim(obj$par, obj$fn, method = method, control = control, 
+                 lower = lower, upper = upper)
   } else {
     # Methods that do use gradients (e.g., "BFGS", "L-BFGS-B", "CG")
-    opt <- optim(obj$par, obj$fn, obj$gr, method = method, control = control)
+    # Note: optim only uses bounds if method is "L-BFGS-B"
+    opt <- optim(obj$par, obj$fn, obj$gr, method = method, control = control, 
+                 lower = lower, upper = upper)
   }
 
   # Handle slightly different output formats from nlminb and optim
-  # The negative log-likelihood is in 'objective' for nlminb and 'value' for optim
   nll <- if (method == "nlminb") opt$objective else opt$value
   
   if (method != "nlminb") {
@@ -120,28 +121,28 @@ occuN <- function(formula, data,
 
   # 'state' (beta) is second in the parameter list
   state_est <- unmarkedEstimate(name = "State", short.name = "lam",
-                  estimates = est_mat[(n_alpha + 1):n_pars, 1],
-                  covMat = sd_rep$cov.fixed[(n_alpha + 1):n_pars, (n_alpha + 1):n_pars],
-                  invlink = "exp", invlinkGrad = "exp")
+                                estimates = est_mat[(n_alpha + 1):n_pars, 1],
+                                covMat = sd_rep$cov.fixed[(n_alpha + 1):n_pars, (n_alpha + 1):n_pars],
+                                invlink = "exp", invlinkGrad = "exp")
 
   # 'det' (alpha) is first in the parameter list
   det_est <- unmarkedEstimate(name = "Detection", short.name = "p",
-                estimates = est_mat[1:n_alpha, 1],
-                covMat = sd_rep$cov.fixed[1:n_alpha, 1:n_alpha],
-                invlink = "logistic", invlinkGrad = "logistic.grad")
+                              estimates = est_mat[1:n_alpha, 1],
+                              covMat = sd_rep$cov.fixed[1:n_alpha, 1:n_alpha],
+                              invlink = "logistic", invlinkGrad = "logistic.grad")
 
 
   fit <- new("unmarkedFitOccuN",
-         fitType = "occuN",
-         call = match.call(),
-         formula = formula,
-         data = data,
-         sitesRemoved = numeric(0),
-         estimates = unmarkedEstimateList(list(state=state_est, det=det_est)),
-         AIC = 2 * nll + 2 * n_pars,
-         opt = opt,
-         negLogLike = nll,
-         nllFun = obj$fn)
+             fitType = "occuN",
+             call = match.call(),
+             formula = formula,
+             data = data,
+             sitesRemoved = numeric(0),
+             estimates = unmarkedEstimateList(list(state=state_est, det=det_est)),
+             AIC = 2 * nll + 2 * n_pars,
+             opt = opt,
+             negLogLike = nll,
+             nllFun = obj$fn)
 
   return(fit)
 }
