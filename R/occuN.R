@@ -94,42 +94,62 @@ occuN <- function(formula, data,
   obj <- TMB::MakeADFun(data = tmb_data, parameters = tmb_params,
                         DLL = "unmarked_TMBExports", silent = TRUE)
 
-  
+  # Optimization with bounds
   if (method == "nlminb") {
     opt <- nlminb(obj$par, obj$fn, obj$gr, control = control, 
                   lower = lower, upper = upper)
   } else if (method %in% c("Nelder-Mead", "SANN")) {
-    # Methods that do not use gradients
     opt <- optim(obj$par, obj$fn, method = method, control = control, 
                  lower = lower, upper = upper)
   } else {
-    # Methods that do use gradients (e.g., "BFGS", "L-BFGS-B", "CG")
-    # Note: optim only uses bounds if method is "L-BFGS-B"
     opt <- optim(obj$par, obj$fn, obj$gr, method = method, control = control, 
                  lower = lower, upper = upper)
   }
 
-  # Handle slightly different output formats from nlminb and optim
+  # extract nll and parameter estimates
   nll <- if (method == "nlminb") opt$objective else opt$value
-  
-  if (method != "nlminb") {
-    obj$fn(opt$par) 
+  ests <- opt$par
+  names(ests) <- names(obj$par)
+
+  # Calculate SE only if requested
+  if(se) {
+    if (method != "nlminb") {
+      obj$fn(opt$par) 
+    }
+    
+    sd_rep <- TMB::sdreport(obj)
+    est_mat <- summary(sd_rep, "fixed")
+    
+    ests_alpha   <- est_mat[1:n_alpha, 1]
+    se_alpha     <- est_mat[1:n_alpha, 2]
+    covMat_alpha <- sd_rep$cov.fixed[1:n_alpha, 1:n_alpha]
+    
+    ests_beta    <- est_mat[(n_alpha + 1):n_pars, 1]
+    se_beta      <- est_mat[(n_alpha + 1):n_pars, 2]
+    covMat_beta  <- sd_rep$cov.fixed[(n_alpha + 1):n_pars, (n_alpha + 1):n_pars]
+    
+  } else {
+    # If SE is FALSE, fill with NAs to save time
+    ests_alpha   <- ests[1:n_alpha]
+    se_alpha     <- rep(NA, n_alpha)
+    covMat_alpha <- matrix(NA, n_alpha, n_alpha)
+    
+    ests_beta    <- ests[(n_alpha + 1):n_pars]
+    se_beta      <- rep(NA, n_beta)
+    covMat_beta  <- matrix(NA, n_beta, n_beta)
   }
 
-  sd_rep <- TMB::sdreport(obj)
-  est_mat <- summary(sd_rep, "fixed")
-
-
+  # Create estimate objects
   # 'state' (beta) is second in the parameter list
   state_est <- unmarkedEstimate(name = "State", short.name = "lam",
-                                estimates = est_mat[(n_alpha + 1):n_pars, 1],
-                                covMat = sd_rep$cov.fixed[(n_alpha + 1):n_pars, (n_alpha + 1):n_pars],
+                                estimates = ests_beta,
+                                covMat = covMat_beta,
                                 invlink = "exp", invlinkGrad = "exp")
 
   # 'det' (alpha) is first in the parameter list
   det_est <- unmarkedEstimate(name = "Detection", short.name = "p",
-                              estimates = est_mat[1:n_alpha, 1],
-                              covMat = sd_rep$cov.fixed[1:n_alpha, 1:n_alpha],
+                              estimates = ests_alpha,
+                              covMat = covMat_alpha,
                               invlink = "logistic", invlinkGrad = "logistic.grad")
 
 
